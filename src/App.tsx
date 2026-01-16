@@ -1,8 +1,3 @@
-// 勤怠管理ページ（最終安定版 v7）
-// ・iPhone入力時ズームなし
-// ・キーボード表示でも画面が一切ズレない
-// ・カレンダー完全固定
-
 import { useState, useEffect } from "react";
 
 const WEEK = ["日", "月", "火", "水", "木", "金", "土"];
@@ -13,7 +8,7 @@ type RecordData = {
   paidLeave?: boolean;
 };
 
-export default function WorkApp() {
+export default function App() {
   const today = new Date();
   const [ym, setYm] = useState({ y: today.getFullYear(), m: today.getMonth() + 1 });
   const [records, setRecords] = useState<Record<string, RecordData>>({});
@@ -26,22 +21,14 @@ export default function WorkApp() {
   const [hwM, setHwM] = useState(0);
   const [paidLeave, setPaidLeave] = useState(false);
 
-  /* ---------- 初期読み込み ---------- */
   useEffect(() => {
     const saved = localStorage.getItem("workRecords");
     if (saved) setRecords(JSON.parse(saved));
   }, []);
 
-  /* ---------- モーダル中は背景完全停止 ---------- */
   useEffect(() => {
-    document.body.style.position = open ? "fixed" : "";
-    document.body.style.width = open ? "100%" : "";
+    document.body.style.overflow = open ? "hidden" : "auto";
   }, [open]);
-
-  const saveRecords = (next: Record<string, RecordData>) => {
-    setRecords(next);
-    localStorage.setItem("workRecords", JSON.stringify(next));
-  };
 
   const firstDay = new Date(ym.y, ym.m - 1, 1).getDay();
   const days = new Date(ym.y, ym.m, 0).getDate();
@@ -49,8 +36,6 @@ export default function WorkApp() {
 
   const monthData = Object.entries(records).filter(([k]) => k.startsWith(monthKey));
   const totalOver = monthData.reduce((a, [, v]) => a + (v.overtime || 0), 0);
-  const totalHolidayDays = monthData.filter(([, v]) => (v.holidayWork || 0) > 0).length;
-  const totalPaidLeaveDays = monthData.filter(([, v]) => v.paidLeave).length;
 
   const openModal = (key: string, rec?: RecordData) => {
     setSelected(key);
@@ -73,75 +58,63 @@ export default function WorkApp() {
     } else {
       delete next[selected];
     }
-    saveRecords(next);
+
+    setRecords(next);
+    localStorage.setItem("workRecords", JSON.stringify(next));
     setOpen(false);
   };
 
   return (
     <div style={styles.page}>
-      {/* ===== ヘッダー ===== */}
-      <div style={styles.header}>
-        <div style={styles.monthNav}>
-          <button onClick={() => setYm(v => ({ y: v.m === 1 ? v.y - 1 : v.y, m: v.m === 1 ? 12 : v.m - 1 }))}>‹</button>
-          <span>{ym.y}年 {ym.m}月</span>
-          <button onClick={() => setYm(v => ({ y: v.m === 12 ? v.y + 1 : v.y, m: v.m === 12 ? 1 : v.m + 1 }))}>›</button>
-        </div>
+      <header style={styles.header}>
+        <button onClick={() => setYm(v => ({ y: v.m === 1 ? v.y - 1 : v.y, m: v.m === 1 ? 12 : v.m - 1 }))}>‹</button>
+        <span>{ym.y}年 {ym.m}月</span>
+        <button onClick={() => setYm(v => ({ y: v.m === 12 ? v.y + 1 : v.y, m: v.m === 12 ? 1 : v.m + 1 }))}>›</button>
         <div style={styles.summary}>
-          残業 {Math.floor(totalOver / 60)}h{totalOver % 60}m ／ 休出 {totalHolidayDays}日 ／ 年休 {totalPaidLeaveDays}日
+          残業 {Math.floor(totalOver / 60)}h{totalOver % 60}m
         </div>
-      </div>
+      </header>
 
-      {/* ===== 曜日 ===== */}
       <div style={styles.weekRow}>
-        {WEEK.map((w, i) => (
-          <div key={w} style={{ ...styles.week, color: i === 0 ? "#E85A5A" : i === 6 ? "#3A7BFF" : "#555" }}>
-            {w}
-          </div>
-        ))}
+        {WEEK.map(w => <div key={w}>{w}</div>)}
       </div>
 
-      {/* ===== カレンダー ===== */}
       <div style={styles.calendar}>
         {Array.from({ length: firstDay }).map((_, i) => <div key={i} />)}
         {Array.from({ length: days }).map((_, i) => {
           const d = i + 1;
           const key = `${ym.y}-${String(ym.m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
           const rec = records[key];
-          const day = new Date(ym.y, ym.m - 1, d).getDay();
 
           return (
             <div key={key} style={styles.day} onClick={() => openModal(key, rec)}>
-              <div style={{ fontWeight: 700, fontSize: 12, color: day === 0 || rec?.paidLeave ? "#E85A5A" : day === 6 ? "#3A7BFF" : "#333" }}>
-                {d}
-              </div>
-              {rec?.overtime && <div style={styles.overtime}>{Math.floor(rec.overtime / 60)}h{rec.overtime % 60}m</div>}
-              {rec?.holidayWork && <div style={styles.holiday}>休出</div>}
+              <div style={{ fontWeight: 700 }}>{d}</div>
+
+              {rec?.overtime && rec.overtime > 0 && (
+                <div style={styles.overtime}>
+                  {Math.floor(rec.overtime / 60)}h{rec.overtime % 60}m
+                </div>
+              )}
+
+              {rec?.holidayWork && rec.holidayWork > 0 && (
+                <div style={styles.holiday}>休出</div>
+              )}
+
               {rec?.paidLeave && <div style={styles.leave}>年休</div>}
             </div>
           );
         })}
       </div>
 
-      {/* ===== モーダル ===== */}
       {open && (
         <div style={styles.modalBg}>
           <form style={styles.modal} onSubmit={e => { e.preventDefault(); saveCurrent(); }}>
-            <div style={styles.row}>
-              残業
-              <input style={styles.input} inputMode="numeric" type="number" value={otH} onChange={e => setOtH(+e.target.value)} />h
-              <input style={styles.input} inputMode="numeric" type="number" value={otM} step={10} onChange={e => setOtM(+e.target.value)} />m
-            </div>
-            <div style={styles.row}>
-              休出
-              <input style={styles.input} inputMode="numeric" type="number" value={hwH} onChange={e => setHwH(+e.target.value)} />h
-              <input style={styles.input} inputMode="numeric" type="number" value={hwM} step={10} onChange={e => setHwM(+e.target.value)} />m
-            </div>
-            <div style={styles.row}>
-              <label>
-                <input type="checkbox" checked={paidLeave} onChange={e => setPaidLeave(e.target.checked)} /> 年休・祝日
-              </label>
-            </div>
-            <button type="submit" style={styles.save}>保存</button>
+            <input type="number" value={otH} onChange={e => setOtH(+e.target.value)} />
+            <input type="number" value={otM} onChange={e => setOtM(+e.target.value)} />
+            <label>
+              <input type="checkbox" checked={paidLeave} onChange={e => setPaidLeave(e.target.checked)} /> 年休
+            </label>
+            <button type="submit">保存</button>
           </form>
         </div>
       )}
@@ -149,39 +122,16 @@ export default function WorkApp() {
   );
 }
 
-/* ===== スタイル ===== */
 const styles: any = {
-  page: {
-    background: "#FFF7EE",
-    padding: 10,
-    fontFamily: "-apple-system",
-  },
-  header: { marginBottom: 6 },
-  monthNav: { display: "flex", justifyContent: "space-between", alignItems: "center" },
-  summary: { fontSize: 12, color: "#555", marginTop: 4 },
-  weekRow: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 4 },
-  week: { textAlign: "center", fontSize: 11 },
-  calendar: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 },
-  day: { background: "#fff", borderRadius: 12, padding: 6, minHeight: 70 },
-  overtime: { fontSize: 11, color: "#FF7A00", fontWeight: 600 },
-  holiday: { fontSize: 10, color: "#FF9F1C" },
-  leave: { fontSize: 10, color: "#E85A5A" },
-  modalBg: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.35)",
-  },
-  modal: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: "#fff",
-    padding: 16,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  row: { display: "flex", alignItems: "center", gap: 6, marginBottom: 10 },
-  input: { fontSize: 16, padding: 4 },
-  save: { width: "100%", padding: 12, borderRadius: 12, background: "#FFB703", border: "none", fontSize: 16 },
+  page: { padding: 10 },
+  header: { marginBottom: 10 },
+  summary: { fontSize: 12 },
+  weekRow: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)" },
+  calendar: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 },
+  day: { background: "#fff", padding: 6, borderRadius: 10 },
+  overtime: { color: "#FF7A00", fontSize: 12 },
+  holiday: { color: "#FF9F1C", fontSize: 11 },
+  leave: { color: "#E85A5A", fontSize: 11 },
+  modalBg: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)" },
+  modal: { background: "#fff", padding: 16 }
 };
