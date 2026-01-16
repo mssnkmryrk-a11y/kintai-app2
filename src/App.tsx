@@ -3,12 +3,12 @@ import { useState, useEffect } from "react";
 const WEEK = ["日", "月", "火", "水", "木", "金", "土"];
 
 type RecordData = {
-  overtime?: number;
-  holidayWork?: number;
+  overtime?: number;    // 分
+  holidayWork?: number; // 分
   paidLeave?: boolean;
 };
 
-export default function App() {
+export default function WorkApp() {
   const today = new Date();
   const [ym, setYm] = useState({ y: today.getFullYear(), m: today.getMonth() + 1 });
   const [records, setRecords] = useState<Record<string, RecordData>>({});
@@ -30,12 +30,25 @@ export default function App() {
     document.body.style.overflow = open ? "hidden" : "auto";
   }, [open]);
 
+  const saveRecords = (next: Record<string, RecordData>) => {
+    setRecords(next);
+    localStorage.setItem("workRecords", JSON.stringify(next));
+  };
+
   const firstDay = new Date(ym.y, ym.m - 1, 1).getDay();
   const days = new Date(ym.y, ym.m, 0).getDate();
   const monthKey = `${ym.y}-${String(ym.m).padStart(2, "0")}`;
 
-  const monthData = Object.entries(records).filter(([k]) => k.startsWith(monthKey));
+  const monthData = Object.entries(records).filter(([k]) =>
+    k.startsWith(monthKey)
+  );
   const totalOver = monthData.reduce((a, [, v]) => a + (v.overtime || 0), 0);
+  const totalHolidayDays = monthData.filter(
+    ([, v]) => (v.holidayWork || 0) > 0
+  ).length;
+  const totalPaidLeaveDays = monthData.filter(
+    ([, v]) => v.paidLeave
+  ).length;
 
   const openModal = (key: string, rec?: RecordData) => {
     setSelected(key);
@@ -58,37 +71,79 @@ export default function App() {
     } else {
       delete next[selected];
     }
-
-    setRecords(next);
-    localStorage.setItem("workRecords", JSON.stringify(next));
+    saveRecords(next);
     setOpen(false);
   };
 
   return (
     <div style={styles.page}>
       <header style={styles.header}>
-        <button onClick={() => setYm(v => ({ y: v.m === 1 ? v.y - 1 : v.y, m: v.m === 1 ? 12 : v.m - 1 }))}>‹</button>
-        <span>{ym.y}年 {ym.m}月</span>
-        <button onClick={() => setYm(v => ({ y: v.m === 12 ? v.y + 1 : v.y, m: v.m === 12 ? 1 : v.m + 1 }))}>›</button>
+        <div style={styles.monthNav}>
+          <button onClick={() =>
+            setYm(v => ({
+              y: v.m === 1 ? v.y - 1 : v.y,
+              m: v.m === 1 ? 12 : v.m - 1
+            }))
+          }>‹</button>
+
+          <span>{ym.y}年 {ym.m}月</span>
+
+          <button onClick={() =>
+            setYm(v => ({
+              y: v.m === 12 ? v.y + 1 : v.y,
+              m: v.m === 12 ? 1 : v.m + 1
+            }))
+          }>›</button>
+        </div>
+
         <div style={styles.summary}>
-          残業 {Math.floor(totalOver / 60)}h{totalOver % 60}m
+          残業 {Math.floor(totalOver / 60)}h{totalOver % 60}m ／
+          休出 {totalHolidayDays}日 ／
+          年休 {totalPaidLeaveDays}日
         </div>
       </header>
 
       <div style={styles.weekRow}>
-        {WEEK.map(w => <div key={w}>{w}</div>)}
+        {WEEK.map((w, i) => (
+          <div
+            key={w}
+            style={{
+              ...styles.week,
+              color: i === 0 ? "#E85A5A" : i === 6 ? "#3A7BFF" : "#555"
+            }}
+          >
+            {w}
+          </div>
+        ))}
       </div>
 
       <div style={styles.calendar}>
-        {Array.from({ length: firstDay }).map((_, i) => <div key={i} />)}
+        {Array.from({ length: firstDay }).map((_, i) => (
+          <div key={i} />
+        ))}
+
         {Array.from({ length: days }).map((_, i) => {
           const d = i + 1;
           const key = `${ym.y}-${String(ym.m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
           const rec = records[key];
+          const day = new Date(ym.y, ym.m - 1, d).getDay();
 
           return (
             <div key={key} style={styles.day} onClick={() => openModal(key, rec)}>
-              <div style={{ fontWeight: 700 }}>{d}</div>
+              <div
+                style={{
+                  fontWeight: 700,
+                  fontSize: 12,
+                  color:
+                    day === 0 || rec?.paidLeave
+                      ? "#E85A5A"
+                      : day === 6
+                      ? "#3A7BFF"
+                      : "#333",
+                }}
+              >
+                {d}
+              </div>
 
               {rec?.overtime && rec.overtime > 0 && (
                 <div style={styles.overtime}>
@@ -108,13 +163,33 @@ export default function App() {
 
       {open && (
         <div style={styles.modalBg}>
-          <form style={styles.modal} onSubmit={e => { e.preventDefault(); saveCurrent(); }}>
-            <input type="number" value={otH} onChange={e => setOtH(+e.target.value)} />
-            <input type="number" value={otM} onChange={e => setOtM(+e.target.value)} />
-            <label>
-              <input type="checkbox" checked={paidLeave} onChange={e => setPaidLeave(e.target.checked)} /> 年休
-            </label>
-            <button type="submit">保存</button>
+          <form
+            style={styles.modal}
+            onSubmit={e => {
+              e.preventDefault();
+              saveCurrent();
+            }}
+          >
+            <div style={styles.row}>
+              残業
+              <input style={styles.input} type="number" value={otH} min={0} onChange={e => setOtH(+e.target.value)} />h
+              <input style={styles.input} type="number" value={otM} min={0} step={10} onChange={e => setOtM(+e.target.value)} />m
+            </div>
+
+            <div style={styles.row}>
+              休出
+              <input style={styles.input} type="number" value={hwH} min={0} onChange={e => setHwH(+e.target.value)} />h
+              <input style={styles.input} type="number" value={hwM} min={0} step={10} onChange={e => setHwM(+e.target.value)} />m
+            </div>
+
+            <div style={styles.row}>
+              <label>
+                <input type="checkbox" checked={paidLeave} onChange={e => setPaidLeave(e.target.checked)} />
+                年休・祝日
+              </label>
+            </div>
+
+            <button type="submit" style={styles.save}>保存</button>
           </form>
         </div>
       )}
@@ -123,15 +198,20 @@ export default function App() {
 }
 
 const styles: any = {
-  page: { padding: 10 },
-  header: { marginBottom: 10 },
-  summary: { fontSize: 12 },
-  weekRow: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)" },
+  page: { background: "#FFF7EE", minHeight: "100vh", padding: 10, fontFamily: "-apple-system" },
+  header: { marginBottom: 6 },
+  monthNav: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+  summary: { fontSize: 12, color: "#555", marginTop: 4 },
+  weekRow: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 },
+  week: { textAlign: "center", fontSize: 11 },
   calendar: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 },
-  day: { background: "#fff", padding: 6, borderRadius: 10 },
-  overtime: { color: "#FF7A00", fontSize: 12 },
-  holiday: { color: "#FF9F1C", fontSize: 11 },
-  leave: { color: "#E85A5A", fontSize: 11 },
-  modalBg: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)" },
-  modal: { background: "#fff", padding: 16 }
+  day: { background: "#fff", borderRadius: 12, padding: 6, minHeight: 70 },
+  overtime: { fontSize: 11, color: "#FF7A00", fontWeight: 600 },
+  holiday: { fontSize: 10, color: "#FF9F1C" },
+  leave: { fontSize: 10, color: "#E85A5A" },
+  modalBg: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "flex-end" },
+  modal: { background: "#fff", width: "100%", padding: 16, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+  row: { display: "flex", alignItems: "center", gap: 6, marginBottom: 10 },
+  input: { fontSize: 16, padding: 4 },
+  save: { width: "100%", padding: 12, borderRadius: 12, background: "#FFB703", border: "none", fontSize: 16 },
 };
