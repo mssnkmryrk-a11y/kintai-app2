@@ -3,8 +3,8 @@ import { useState, useEffect, useRef } from "react";
 const WEEK = ["日", "月", "火", "水", "木", "金", "土"];
 
 type RecordData = {
-  overtime?: number;
-  holidayWork?: number;
+  overtime?: number;     // 分
+  holidayWork?: number;  // 分
   paidLeave?: boolean;
 };
 
@@ -23,11 +23,13 @@ export default function App() {
 
   const touchX = useRef<number | null>(null);
 
+  // localStorage 読み込み
   useEffect(() => {
     const saved = localStorage.getItem("workRecords");
     if (saved) setRecords(JSON.parse(saved));
   }, []);
 
+  // モーダル中は背景スクロール停止
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "auto";
   }, [open]);
@@ -71,6 +73,7 @@ export default function App() {
     setOpen(false);
   };
 
+  // スワイプで月移動
   const handleTouchStart = (e: React.TouchEvent) => {
     touchX.current = e.touches[0].clientX;
   };
@@ -91,18 +94,23 @@ export default function App() {
   return (
     <div style={styles.page}>
       <div style={styles.centerWrap}>
+        {/* ヘッダー */}
         <header style={styles.header}>
           <button onClick={() => setYm(v => ({ y: v.m === 1 ? v.y - 1 : v.y, m: v.m === 1 ? 12 : v.m - 1 }))}>‹</button>
           <div style={styles.title}>{ym.y}年 {ym.m}月</div>
           <button onClick={() => setYm(v => ({ y: v.m === 12 ? v.y + 1 : v.y, m: v.m === 12 ? 1 : v.m + 1 }))}>›</button>
         </header>
 
+        {/* 曜日 */}
         <div style={styles.weekRow}>
           {WEEK.map((w, i) => (
-            <div key={w} style={{ ...styles.week, color: i === 0 ? "#E85A5A" : i === 6 ? "#3A7BFF" : "#555" }}>{w}</div>
+            <div key={w} style={{ ...styles.week, color: i === 0 ? "#E85A5A" : i === 6 ? "#3A7BFF" : "#555" }}>
+              {w}
+            </div>
           ))}
         </div>
 
+        {/* カレンダー */}
         <div
           style={styles.calendar}
           onTouchStart={handleTouchStart}
@@ -120,12 +128,22 @@ export default function App() {
                 <div style={{ fontWeight: 700, fontSize: 12, color: day === 0 || rec?.paidLeave ? "#E85A5A" : day === 6 ? "#3A7BFF" : "#333" }}>
                   {d}
                 </div>
-                {rec?.overtime && <div style={styles.overtime}>{Math.floor(rec.overtime / 60)}h{rec.overtime % 60}m</div>}
+
+                {rec?.overtime && (
+                  <div style={styles.overtime}>
+                    {Math.floor(rec.overtime / 60)}h{rec.overtime % 60}m
+                  </div>
+                )}
+
+                {rec?.holidayWork && (
+                  <div style={styles.holiday}>休出</div>
+                )}
               </div>
             );
           })}
         </div>
 
+        {/* 下部集計 */}
         <div style={styles.summaryBottom}>
           <div>残業合計：{Math.floor(totalOver / 60)}h{totalOver % 60}m</div>
           <div>休日出勤：{totalHolidayDays}日</div>
@@ -133,6 +151,7 @@ export default function App() {
         </div>
       </div>
 
+      {/* 入力モーダル */}
       {open && (
         <div style={styles.modalBg}>
           <form style={styles.modal} onSubmit={e => { e.preventDefault(); saveCurrent(); }}>
@@ -142,7 +161,14 @@ export default function App() {
               <input style={styles.input} type="number" value={otM} step={10} onChange={e => setOtM(+e.target.value)} />m
             </div>
             <div style={styles.row}>
-              <input type="checkbox" checked={paidLeave} onChange={e => setPaidLeave(e.target.checked)} /> 年休
+              休出
+              <input style={styles.input} type="number" value={hwH} onChange={e => setHwH(+e.target.value)} />h
+              <input style={styles.input} type="number" value={hwM} step={10} onChange={e => setHwM(+e.target.value)} />m
+            </div>
+            <div style={styles.row}>
+              <label>
+                <input type="checkbox" checked={paidLeave} onChange={e => setPaidLeave(e.target.checked)} /> 年休
+              </label>
             </div>
             <button type="submit" style={styles.save}>保存</button>
           </form>
@@ -169,7 +195,7 @@ const styles: any = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   title: { fontSize: 22, fontWeight: 700 },
   weekRow: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 },
@@ -177,6 +203,7 @@ const styles: any = {
   calendar: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 },
   day: { background: "#fff", borderRadius: 12, padding: 6, minHeight: 68 },
   overtime: { fontSize: 11, color: "#FF7A00", fontWeight: 600 },
+  holiday: { fontSize: 10, color: "#FF9F1C", fontWeight: 600 },
   summaryBottom: { marginTop: 10, textAlign: "center", fontSize: 15, fontWeight: 600 },
   modalBg: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", justifyContent: "center", alignItems: "center" },
   modal: { background: "#fff", padding: 16, borderRadius: 20, width: "90%" },
