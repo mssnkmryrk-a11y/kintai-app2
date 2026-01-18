@@ -1,11 +1,10 @@
 {
-  "name": "勤怠管理",
-  "short_name": "勤怠",
+  "name": "もんど",
+  "short_name": "もんど",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#ffffff"
-}
+  "theme_color": "#ffffff",
   "icons": [
     {
       "src": "/icon-192.png",
