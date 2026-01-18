@@ -1,6 +1,6 @@
 {
-  "name": "もんど",
-  "short_name": "もんど",
+  "name": "勤怠管理",
+  "short_name": "勤怠",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
