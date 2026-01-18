@@ -3,8 +3,9 @@
   "short_name": "勤怠",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FFF7EE",
-  "theme_color": "#FFB703",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff"
+}
   "icons": [
     {
       "src": "/icon-192.png",
