@@ -1,10 +1,28 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+
+/* ===== 日本の祝日（固定＋簡易計算） ===== */
+const getHolidays = (year: number) => {
+  const h = new Set<string>();
+  const f = (m: number, d: number) =>
+    h.add(`${year}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+
+  f(1, 1);   // 元日
+  f(2, 11);  // 建国記念
+  f(4, 29);  // 昭和
+  f(5, 3); f(5, 4); f(5, 5); // GW
+  f(8, 11);  // 山の日
+  f(11, 3);  // 文化
+  f(11, 23); // 勤労
+  f(12, 23); // 天皇誕生日（簡易）
+
+  return h;
+};
 
 const WEEK = ["日", "月", "火", "水", "木", "金", "土"];
 
 type RecordData = {
-  overtime?: number; // 分
-  holidayWork?: number; // 分
+  overtime?: number;
+  holidayWork?: number;
   paidLeave?: boolean;
 };
 
@@ -21,20 +39,25 @@ export default function App() {
   const [hwM, setHwM] = useState(0);
   const [paidLeave, setPaidLeave] = useState(false);
 
+  const touchX = useRef<number | null>(null);
+  const holidays = getHolidays(ym.y);
+
+  /* ===== 保存 ===== */
   useEffect(() => {
-    const saved = localStorage.getItem("workRecords");
-    if (saved) setRecords(JSON.parse(saved));
+    const s = localStorage.getItem("workRecords");
+    if (s) setRecords(JSON.parse(s));
   }, []);
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "auto";
   }, [open]);
 
-  const saveRecords = (next: Record<string, RecordData>) => {
-    setRecords(next);
-    localStorage.setItem("workRecords", JSON.stringify(next));
+  const saveRecords = (n: Record<string, RecordData>) => {
+    setRecords(n);
+    localStorage.setItem("workRecords", JSON.stringify(n));
   };
 
+  /* ===== カレンダー ===== */
   const firstDay = new Date(ym.y, ym.m - 1, 1).getDay();
   const days = new Date(ym.y, ym.m, 0).getDate();
   const monthKey = `${ym.y}-${String(ym.m).padStart(2, "0")}`;
@@ -43,11 +66,11 @@ export default function App() {
   const totalOver = monthData.reduce((a, [, v]) => a + (v.overtime || 0), 0);
   const totalHolidayDays = monthData.filter(([, v]) => (v.holidayWork || 0) > 0).length;
 
-  const yearKey = `${ym.y}-`;
   const totalPaidLeaveYear = Object.entries(records).filter(
-    ([k, v]) => k.startsWith(yearKey) && v.paidLeave
+    ([k, v]) => k.startsWith(`${ym.y}-`) && v.paidLeave
   ).length;
 
+  /* ===== モーダル ===== */
   const openModal = (key: string, rec?: RecordData) => {
     setSelected(key);
     setOtH(Math.floor((rec?.overtime || 0) / 60));
@@ -73,8 +96,26 @@ export default function App() {
     setOpen(false);
   };
 
+  /* ===== スワイプ ===== */
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchX.current = e.touches[0].clientX;
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchX.current;
+    if (Math.abs(dx) > 60) {
+      setYm(v =>
+        dx < 0
+          ? { y: v.m === 12 ? v.y + 1 : v.y, m: v.m === 12 ? 1 : v.m + 1 }
+          : { y: v.m === 1 ? v.y - 1 : v.y, m: v.m === 1 ? 12 : v.m - 1 }
+      );
+    }
+    touchX.current = null;
+  };
+
   return (
-    <div style={styles.page}>
+    <div style={styles.page} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       {/* 上：年月 */}
       <div style={styles.monthNav}>
         <button onClick={() => setYm(v => ({ y: v.m === 1 ? v.y - 1 : v.y, m: v.m === 1 ? 12 : v.m - 1 }))}>‹</button>
@@ -99,27 +140,28 @@ export default function App() {
           const key = `${ym.y}-${String(ym.m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
           const rec = records[key];
           const day = new Date(ym.y, ym.m - 1, d).getDay();
+          const isHoliday = holidays.has(key);
 
           return (
             <div key={key} style={styles.day} onClick={() => openModal(key, rec)}>
-              <div style={{ fontWeight: 700, color: day === 0 ? "#E85A5A" : day === 6 ? "#3A7BFF" : "#333" }}>
+              <div style={{
+                fontWeight: 700,
+                color: day === 0 || isHoliday ? "#E85A5A" : day === 6 ? "#3A7BFF" : "#333"
+              }}>
                 {d}
               </div>
 
-              {/* 残業（0は出ない） */}
-              {rec?.overtime !== undefined && rec.overtime > 0 && (
+              {rec?.overtime && rec.overtime > 0 && (
                 <div style={styles.overtime}>
                   {Math.floor(rec.overtime / 60) > 0 && `${Math.floor(rec.overtime / 60)}h`}
                   {rec.overtime % 60 > 0 && `${rec.overtime % 60}m`}
                 </div>
               )}
 
-              {/* 休日出勤 */}
-              {rec?.holidayWork !== undefined && rec.holidayWork > 0 && (
+              {rec?.holidayWork && rec.holidayWork > 0 && (
                 <div style={styles.holiday}>休出</div>
               )}
 
-              {/* 年休 */}
               {rec?.paidLeave && <div style={styles.leave}>年休</div>}
             </div>
           );
@@ -133,7 +175,7 @@ export default function App() {
         <div>年休（年合計）：{totalPaidLeaveYear}日</div>
       </div>
 
-      {/* モーダル */}
+      {/* モーダル（画面中央固定） */}
       {open && (
         <div style={styles.modalBg}>
           <form style={styles.modal} onSubmit={e => { e.preventDefault(); saveCurrent(); }}>
