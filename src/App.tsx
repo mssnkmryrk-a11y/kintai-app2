@@ -16,11 +16,13 @@ export default function App() {
   const [open, setOpen] = useState(false);
   const [key, setKey] = useState("");
 
-  const [ot, setOt] = useState("");
-  const [hw, setHw] = useState("");
+  const [otH, setOtH] = useState(0);
+  const [otM, setOtM] = useState(0);
+  const [hwH, setHwH] = useState(0);
+  const [hwM, setHwM] = useState(0);
   const [paidLeave, setPaidLeave] = useState(false);
 
-  /* --- 保存データ --- */
+  /* --- load/save --- */
   useEffect(() => {
     const s = localStorage.getItem("records");
     if (s) setRecords(JSON.parse(s));
@@ -31,7 +33,7 @@ export default function App() {
     localStorage.setItem("records", JSON.stringify(next));
   };
 
-  /* --- 月計算 --- */
+  /* --- calendar --- */
   const first = new Date(ym.y, ym.m - 1, 1).getDay();
   const days = new Date(ym.y, ym.m, 0).getDate();
   const monthKey = `${ym.y}-${String(ym.m).padStart(2, "0")}`;
@@ -44,7 +46,7 @@ export default function App() {
   const totalHW = monthData.filter(([, v]) => (v.holidayWork || 0) > 0).length;
   const totalPL = yearData.filter(([, v]) => v.paidLeave).length;
 
-  /* --- スワイプ --- */
+  /* --- swipe --- */
   let startX = 0;
   const onStart = (e: any) => (startX = e.touches[0].clientX);
   const onEnd = (e: any) => {
@@ -57,22 +59,24 @@ export default function App() {
     );
   };
 
-  /* --- 入力 --- */
+  /* --- input --- */
   const openInput = (k: string, r?: RecordData) => {
     setKey(k);
-    setOt(r?.overtime ? String(r.overtime) : "");
-    setHw(r?.holidayWork ? String(r.holidayWork) : "");
+    setOtH(Math.floor((r?.overtime || 0) / 60));
+    setOtM((r?.overtime || 0) % 60);
+    setHwH(Math.floor((r?.holidayWork || 0) / 60));
+    setHwM((r?.holidayWork || 0) % 60);
     setPaidLeave(!!r?.paidLeave);
     setOpen(true);
   };
 
   const save = () => {
     const next = { ...records };
-    const otMin = Number(ot || 0);
-    const hwMin = Number(hw || 0);
+    const overtime = otH * 60 + otM;
+    const holidayWork = hwH * 60 + hwM;
 
-    if (otMin || hwMin || paidLeave) {
-      next[key] = { overtime: otMin, holidayWork: hwMin, paidLeave };
+    if (overtime || holidayWork || paidLeave) {
+      next[key] = { overtime, holidayWork, paidLeave };
     } else {
       delete next[key];
     }
@@ -82,21 +86,21 @@ export default function App() {
 
   return (
     <div style={S.page}>
-      {/* ヘッダー */}
+      {/* header */}
       <div style={S.header}>
         <button onClick={() => setYm(v => ({ y: v.m === 1 ? v.y - 1 : v.y, m: v.m === 1 ? 12 : v.m - 1 }))}>‹</button>
         <div style={S.month}>{ym.y}年 {ym.m}月</div>
         <button onClick={() => setYm(v => ({ y: v.m === 12 ? v.y + 1 : v.y, m: v.m === 12 ? 1 : v.m + 1 }))}>›</button>
       </div>
 
-      {/* 曜日 */}
+      {/* week */}
       <div style={S.week}>
         {WEEK.map((w, i) => (
           <div key={w} style={{ color: i === 0 ? "#E55" : i === 6 ? "#36F" : "#555" }}>{w}</div>
         ))}
       </div>
 
-      {/* カレンダー */}
+      {/* calendar */}
       <div style={S.cal} onTouchStart={onStart} onTouchEnd={onEnd}>
         {Array.from({ length: first }).map((_, i) => <div key={i} />)}
         {Array.from({ length: days }).map((_, i) => {
@@ -108,7 +112,7 @@ export default function App() {
           return (
             <div key={k} style={S.day} onClick={() => openInput(k, r)}>
               <div style={{ fontWeight: 700, color: wd === 0 ? "#E55" : wd === 6 ? "#36F" : "#333" }}>{d}</div>
-              {r?.overtime ? <div style={S.ot}>{r.overtime}分</div> : null}
+              {r?.overtime ? <div style={S.ot}>{Math.floor(r.overtime / 60)}h{r.overtime % 60}m</div> : null}
               {r?.holidayWork ? <div style={S.hw}>休出</div> : null}
               {r?.paidLeave ? <div style={S.pl}>年休</div> : null}
             </div>
@@ -116,22 +120,26 @@ export default function App() {
         })}
       </div>
 
-      {/* 集計 */}
+      {/* summary */}
       <div style={S.sum}>
         <div>残業合計：{Math.floor(totalOT / 60)}h{totalOT % 60}m</div>
         <div>休日出勤：{totalHW}日</div>
         <div>年休（年間）：{totalPL}日</div>
       </div>
 
-      {/* 入力モーダル */}
+      {/* modal */}
       {open && (
         <div style={S.modalBg}>
           <form style={S.modal} onSubmit={e => { e.preventDefault(); save(); }}>
-            <div>残業（分・10分刻み）
-              <input inputMode="numeric" step={10} value={ot} onChange={e => setOt(e.target.value)} />
+            <div style={S.row}>
+              残業
+              <input type="number" value={otH} onChange={e => setOtH(+e.target.value)} />h
+              <input type="number" step={10} value={otM} onChange={e => setOtM(+e.target.value)} />m
             </div>
-            <div>休出（分・10分刻み）
-              <input inputMode="numeric" step={10} value={hw} onChange={e => setHw(e.target.value)} />
+            <div style={S.row}>
+              休出
+              <input type="number" value={hwH} onChange={e => setHwH(+e.target.value)} />h
+              <input type="number" step={10} value={hwM} onChange={e => setHwM(+e.target.value)} />m
             </div>
             <label>
               <input type="checkbox" checked={paidLeave} onChange={e => setPaidLeave(e.target.checked)} /> 年休
@@ -144,7 +152,6 @@ export default function App() {
   );
 }
 
-/* --- style --- */
 const S: any = {
   page: { minHeight: "100dvh", background: "#FFF7EE", padding: 8 },
   header: { display: "flex", justifyContent: "space-between", alignItems: "center" },
@@ -157,5 +164,6 @@ const S: any = {
   pl: { fontSize: 11 },
   sum: { marginTop: 10, textAlign: "center", fontSize: 16, fontWeight: 700 },
   modalBg: { position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center" },
-  modal: { background: "#fff", padding: 16, borderRadius: 16, width: "85%", fontSize: 16 }
+  modal: { background: "#fff", padding: 16, borderRadius: 16, width: "85%", fontSize: 16 },
+  row: { display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }
 };
