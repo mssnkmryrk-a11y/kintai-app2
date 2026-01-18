@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
 const WEEK = ["日", "月", "火", "水", "木", "金", "土"];
 
 type RecordData = {
-  overtime?: number;     // 分
-  holidayWork?: number;  // 分
+  overtime?: number; // 分
+  holidayWork?: number; // 分
   paidLeave?: boolean;
 };
 
@@ -21,18 +21,19 @@ export default function App() {
   const [hwM, setHwM] = useState(0);
   const [paidLeave, setPaidLeave] = useState(false);
 
-  const touchX = useRef<number | null>(null);
-
-  // localStorage 読み込み
   useEffect(() => {
     const saved = localStorage.getItem("workRecords");
     if (saved) setRecords(JSON.parse(saved));
   }, []);
 
-  // モーダル中は背景スクロール停止
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "auto";
   }, [open]);
+
+  const saveRecords = (next: Record<string, RecordData>) => {
+    setRecords(next);
+    localStorage.setItem("workRecords", JSON.stringify(next));
+  };
 
   const firstDay = new Date(ym.y, ym.m - 1, 1).getDay();
   const days = new Date(ym.y, ym.m, 0).getDate();
@@ -63,114 +64,95 @@ export default function App() {
     const overtime = otH * 60 + otM;
     const holidayWork = hwH * 60 + hwM;
 
-    if (overtime || holidayWork || paidLeave) {
+    if (overtime > 0 || holidayWork > 0 || paidLeave) {
       next[selected] = { overtime, holidayWork, paidLeave };
     } else {
       delete next[selected];
     }
-    localStorage.setItem("workRecords", JSON.stringify(next));
-    setRecords(next);
+    saveRecords(next);
     setOpen(false);
-  };
-
-  // スワイプで月移動
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchX.current === null) return;
-    const diff = e.changedTouches[0].clientX - touchX.current;
-    if (Math.abs(diff) > 50) {
-      setYm(v =>
-        diff < 0
-          ? { y: v.m === 12 ? v.y + 1 : v.y, m: v.m === 12 ? 1 : v.m + 1 }
-          : { y: v.m === 1 ? v.y - 1 : v.y, m: v.m === 1 ? 12 : v.m - 1 }
-      );
-    }
-    touchX.current = null;
   };
 
   return (
     <div style={styles.page}>
-      <div style={styles.centerWrap}>
-        {/* ヘッダー */}
-        <header style={styles.header}>
-          <button onClick={() => setYm(v => ({ y: v.m === 1 ? v.y - 1 : v.y, m: v.m === 1 ? 12 : v.m - 1 }))}>‹</button>
-          <div style={styles.title}>{ym.y}年 {ym.m}月</div>
-          <button onClick={() => setYm(v => ({ y: v.m === 12 ? v.y + 1 : v.y, m: v.m === 12 ? 1 : v.m + 1 }))}>›</button>
-        </header>
-
-        {/* 曜日 */}
-        <div style={styles.weekRow}>
-          {WEEK.map((w, i) => (
-            <div key={w} style={{ ...styles.week, color: i === 0 ? "#E85A5A" : i === 6 ? "#3A7BFF" : "#555" }}>
-              {w}
-            </div>
-          ))}
-        </div>
-
-        {/* カレンダー */}
-        <div
-          style={styles.calendar}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-        >
-          {Array.from({ length: firstDay }).map((_, i) => <div key={i} />)}
-          {Array.from({ length: days }).map((_, i) => {
-            const d = i + 1;
-            const key = `${ym.y}-${String(ym.m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-            const rec = records[key];
-            const day = new Date(ym.y, ym.m - 1, d).getDay();
-
-            return (
-              <div key={key} style={styles.day} onClick={() => openModal(key, rec)}>
-                <div style={{ fontWeight: 700, fontSize: 12, color: day === 0 || rec?.paidLeave ? "#E85A5A" : day === 6 ? "#3A7BFF" : "#333" }}>
-                  {d}
-                </div>
-
-                {rec?.overtime && (
-                  <div style={styles.overtime}>
-                    {Math.floor(rec.overtime / 60)}h{rec.overtime % 60}m
-                  </div>
-                )}
-
-                {rec?.holidayWork && (
-                  <div style={styles.holiday}>休出</div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* 下部集計 */}
-        <div style={styles.summaryBottom}>
-          <div>残業合計：{Math.floor(totalOver / 60)}h{totalOver % 60}m</div>
-          <div>休日出勤：{totalHolidayDays}日</div>
-          <div>年休（年）：{totalPaidLeaveYear}日</div>
-        </div>
+      {/* 上：年月 */}
+      <div style={styles.monthNav}>
+        <button onClick={() => setYm(v => ({ y: v.m === 1 ? v.y - 1 : v.y, m: v.m === 1 ? 12 : v.m - 1 }))}>‹</button>
+        <div style={styles.monthText}>{ym.y}年 {ym.m}月</div>
+        <button onClick={() => setYm(v => ({ y: v.m === 12 ? v.y + 1 : v.y, m: v.m === 12 ? 1 : v.m + 1 }))}>›</button>
       </div>
 
-      {/* 入力モーダル */}
+      {/* 曜日 */}
+      <div style={styles.weekRow}>
+        {WEEK.map((w, i) => (
+          <div key={w} style={{ ...styles.week, color: i === 0 ? "#E85A5A" : i === 6 ? "#3A7BFF" : "#555" }}>
+            {w}
+          </div>
+        ))}
+      </div>
+
+      {/* カレンダー */}
+      <div style={styles.calendar}>
+        {Array.from({ length: firstDay }).map((_, i) => <div key={i} />)}
+        {Array.from({ length: days }).map((_, i) => {
+          const d = i + 1;
+          const key = `${ym.y}-${String(ym.m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+          const rec = records[key];
+          const day = new Date(ym.y, ym.m - 1, d).getDay();
+
+          return (
+            <div key={key} style={styles.day} onClick={() => openModal(key, rec)}>
+              <div style={{ fontWeight: 700, color: day === 0 ? "#E85A5A" : day === 6 ? "#3A7BFF" : "#333" }}>
+                {d}
+              </div>
+
+              {/* 残業（0は出ない） */}
+              {rec?.overtime !== undefined && rec.overtime > 0 && (
+                <div style={styles.overtime}>
+                  {Math.floor(rec.overtime / 60) > 0 && `${Math.floor(rec.overtime / 60)}h`}
+                  {rec.overtime % 60 > 0 && `${rec.overtime % 60}m`}
+                </div>
+              )}
+
+              {/* 休日出勤 */}
+              {rec?.holidayWork !== undefined && rec.holidayWork > 0 && (
+                <div style={styles.holiday}>休出</div>
+              )}
+
+              {/* 年休 */}
+              {rec?.paidLeave && <div style={styles.leave}>年休</div>}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 下：集計 */}
+      <div style={styles.summary}>
+        <div>残業合計：{Math.floor(totalOver / 60)}h {totalOver % 60}m</div>
+        <div>休日出勤：{totalHolidayDays}日</div>
+        <div>年休（年合計）：{totalPaidLeaveYear}日</div>
+      </div>
+
+      {/* モーダル */}
       {open && (
         <div style={styles.modalBg}>
           <form style={styles.modal} onSubmit={e => { e.preventDefault(); saveCurrent(); }}>
             <div style={styles.row}>
               残業
               <input style={styles.input} type="number" value={otH} onChange={e => setOtH(+e.target.value)} />h
-              <input style={styles.input} type="number" value={otM} step={10} onChange={e => setOtM(+e.target.value)} />m
+              <input style={styles.input} type="number" value={otM} onChange={e => setOtM(+e.target.value)} />m
             </div>
             <div style={styles.row}>
               休出
               <input style={styles.input} type="number" value={hwH} onChange={e => setHwH(+e.target.value)} />h
-              <input style={styles.input} type="number" value={hwM} step={10} onChange={e => setHwM(+e.target.value)} />m
+              <input style={styles.input} type="number" value={hwM} onChange={e => setHwM(+e.target.value)} />m
             </div>
             <div style={styles.row}>
               <label>
                 <input type="checkbox" checked={paidLeave} onChange={e => setPaidLeave(e.target.checked)} /> 年休
               </label>
             </div>
-            <button type="submit" style={styles.save}>保存</button>
+            <button style={styles.save}>保存</button>
           </form>
         </div>
       )}
@@ -179,35 +161,20 @@ export default function App() {
 }
 
 const styles: any = {
-  page: {
-    minHeight: "100vh",
-    background: "#FFF7EE",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    fontFamily: "-apple-system",
-  },
-  centerWrap: {
-    width: "100%",
-    maxWidth: 420,
-  },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  title: { fontSize: 22, fontWeight: 700 },
-  weekRow: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 },
+  page: { background: "#FFF7EE", minHeight: "100vh", padding: 10, fontFamily: "-apple-system" },
+  monthNav: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+  monthText: { fontSize: 22, fontWeight: 700 },
+  weekRow: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginTop: 6 },
   week: { textAlign: "center", fontSize: 12 },
-  calendar: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 },
-  day: { background: "#fff", borderRadius: 12, padding: 6, minHeight: 68 },
-  overtime: { fontSize: 11, color: "#FF7A00", fontWeight: 600 },
-  holiday: { fontSize: 10, color: "#FF9F1C", fontWeight: 600 },
-  summaryBottom: { marginTop: 10, textAlign: "center", fontSize: 15, fontWeight: 600 },
-  modalBg: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", justifyContent: "center", alignItems: "center" },
-  modal: { background: "#fff", padding: 16, borderRadius: 20, width: "90%" },
+  calendar: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginTop: 4 },
+  day: { background: "#fff", borderRadius: 12, padding: 6, minHeight: 70 },
+  overtime: { fontSize: 12, color: "#FF7A00", fontWeight: 600 },
+  holiday: { fontSize: 11, color: "#FF9F1C" },
+  leave: { fontSize: 11, color: "#E85A5A" },
+  summary: { marginTop: 10, fontSize: 18, fontWeight: 600 },
+  modalBg: { position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", justifyContent: "center", alignItems: "center" },
+  modal: { background: "#fff", width: "90%", padding: 16, borderRadius: 20 },
   row: { display: "flex", alignItems: "center", gap: 6, marginBottom: 10 },
   input: { fontSize: 16, padding: 4 },
-  save: { width: "100%", padding: 12, borderRadius: 12, background: "#FFB703", border: "none", fontSize: 16 },
+  save: { width: "100%", padding: 12, fontSize: 16, borderRadius: 12, background: "#FFB703", border: "none" },
 };
