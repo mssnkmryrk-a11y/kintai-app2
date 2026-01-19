@@ -172,7 +172,15 @@ export default function App() {
 }
 
 const S: any = {
-  page: { minHeight: "100dvh", background: "#FFF7EE", padding: 8, fontFamily: "-apple-system" },
+  page: {
+  minHeight: "100dvh",
+  background: "#FFF7EE",
+  padding: 8,
+  fontFamily: "-apple-system",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "center"
+}
   header: { display: "flex", justifyContent: "space-between", alignItems: "center" },
   month: { fontSize: 24, fontWeight: 700 },
   nav: { fontSize: 20, background: "none", border: "none" },
@@ -185,7 +193,13 @@ const S: any = {
   hw: { fontSize: 11, color: "#F90" },
   pl: { fontSize: 11, color: "#E55" },
 
-  sum: { marginTop: 8, textAlign: "center", fontSize: 16, fontWeight: 700 },
+  sum: {
+  marginTop: 12,
+  textAlign: "center",
+  fontSize: 18,
+  fontWeight: 800,
+  lineHeight: 1.6
+}
 
   modalBg: { position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center" },
   modal: { background: "#fff", width: "85%", borderRadius: 16, padding: 16, fontSize: 16 },
