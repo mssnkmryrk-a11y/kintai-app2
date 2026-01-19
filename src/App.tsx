@@ -52,6 +52,7 @@ export default function App() {
   const totalOT = monthData.reduce((a, [, v]) => a + (v.overtime || 0), 0);
   const totalHW = monthData.filter(([, v]) => (v.holidayWork || 0) > 0).length;
   const totalPL = yearData.filter(([, v]) => v.paidLeave).length;
+  const totalHWMinutes = monthData.reduce((a, [, v]) => a + (v.holidayWork || 0), 0);
 
   // 入力を開く
   const openInput = (key: string, r?: RecordData) => {
