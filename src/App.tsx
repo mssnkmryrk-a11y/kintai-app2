@@ -137,7 +137,12 @@ export default function App() {
       {/* 集計 */}
       <div style={S.sum}>
         <div>残業 {Math.floor(totalOT / 60)}h{totalOT % 60}m</div>
-        <div>休日出勤 {totalHW}日</div>
+        <div>
+  休日出勤 {totalHW}日
+  {totalHWMinutes > 0
+    ? `（${Math.floor(totalHWMinutes / 60)}h${totalHWMinutes % 60}m）`
+    : ""}
+</div>
         <div>年休（年間）{totalPL}日</div>
       </div>
 
