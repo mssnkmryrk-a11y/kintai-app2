@@ -180,7 +180,7 @@ const S: any = {
   display: "flex",
   flexDirection: "column",
   justifyContent: "center"
-}
+},
   header: { display: "flex", justifyContent: "space-between", alignItems: "center" },
   month: { fontSize: 24, fontWeight: 700 },
   nav: { fontSize: 20, background: "none", border: "none" },
@@ -199,7 +199,7 @@ const S: any = {
   fontSize: 18,
   fontWeight: 800,
   lineHeight: 1.6
-}
+},
 
   modalBg: { position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center" },
   modal: { background: "#fff", width: "85%", borderRadius: 16, padding: 16, fontSize: 16 },
